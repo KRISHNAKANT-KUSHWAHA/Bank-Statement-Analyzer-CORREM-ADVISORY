@@ -1,0 +1,43 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-navy-50: #E8EDF5;
+  --color-navy-100: #C5D0E6;
+  --color-navy-200: #9FB0D4;
+  --color-navy-300: #7890C2;
+  --color-navy-400: #5A78B4;
+  --color-navy-500: #3D60A6;
+  --color-navy-600: #2D4A82;
+  --color-navy-700: #1E355E;
+  --color-navy-800: #142545;
+  --color-navy-900: #0A1628;
+  --color-navy-950: #050B14;
+  --color-gold-50: #FDF8EC;
+  --color-gold-100: #F9EDCF;
+  --color-gold-200: #F3DBA0;
+  --color-gold-300: #EDC970;
+  --color-gold-400: #E5B641;
+  --color-gold-500: #D4A843;
+  --color-gold-600: #B08A2E;
+  --color-gold-700: #8A6C23;
+  --color-gold-800: #644E19;
+  --color-gold-900: #3E300F;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-white text-navy-900 dark:bg-navy-950 dark:text-gray-100 antialiased;
+    font-family: var(--font-sans);
+  }
+}

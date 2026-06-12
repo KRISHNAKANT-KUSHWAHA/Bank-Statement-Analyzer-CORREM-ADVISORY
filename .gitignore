@@ -1,0 +1,25 @@
+# Secrets and local environment
+.env
+server/.env
+client/.env
+client/.env.local
+client/.env.*.local
+
+# Python
+server/venv/
+**/__pycache__/
+*.py[cod]
+
+# Node
+client/node_modules/
+client/dist/
+
+# Local data and generated reports
+server/hdfc_analyzer.db
+server/uploads/*
+server/exports/*
+
+# Logs and editor files
+*.log
+.vscode/
+.idea/
