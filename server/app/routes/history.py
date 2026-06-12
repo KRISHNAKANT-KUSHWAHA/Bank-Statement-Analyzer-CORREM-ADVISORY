@@ -87,3 +87,42 @@ def download_report(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         filename=download_name,
     )
+
+
+@router.delete("/history/{analysis_id}", status_code=status.HTTP_200_OK)
+def delete_history_item(
+    analysis_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Delete a specific analysis from history and remove its generated Excel report.
+    """
+    analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
+
+    if analysis is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Analysis not found",
+        )
+
+    if analysis.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to delete this analysis",
+        )
+
+    # Delete the generated Excel report file from disk if it exists
+    if analysis.excel_file_path:
+        try:
+            excel_path = Path(analysis.excel_file_path)
+            if excel_path.exists():
+                excel_path.unlink()
+                logger.info("Deleted Excel report: %s", excel_path)
+        except Exception as exc:
+            logger.error("Failed to delete Excel file %s: %s", analysis.excel_file_path, exc)
+
+    db.delete(analysis)
+    db.commit()
+
+    return {"message": "Analysis deleted successfully"}

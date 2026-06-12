@@ -45,7 +45,9 @@ class OCRParser:
         # Reuse the text parser's internal methods via a small hack:
         # we call the private helpers directly on the merged text.
         account_details = self._text_parser._parse_account_details(cleaned_text)
-        transactions = self._text_parser._parse_transactions(cleaned_text)
+        transactions = self._text_parser._parse_transactions(
+            cleaned_text, account_details.get("opening_balance")
+        )
 
         total_credits = sum(t.get("credit", 0.0) for t in transactions)
         total_debits = sum(t.get("debit", 0.0) for t in transactions)

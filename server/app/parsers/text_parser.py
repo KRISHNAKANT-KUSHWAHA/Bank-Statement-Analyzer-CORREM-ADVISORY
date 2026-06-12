@@ -64,7 +64,7 @@ class TextParser:
         """
         raw_text = self._extract_text(file_path, password)
         account_details = self._parse_account_details(raw_text)
-        transactions = self._parse_transactions(raw_text)
+        transactions = self._parse_transactions(raw_text, account_details.get("opening_balance"))
 
         # Compute totals
         total_credits = sum(t.get("credit", 0.0) for t in transactions)
@@ -120,10 +120,19 @@ class TextParser:
 
             # Account number
             if not details["account_number"]:
-                if any(kw in upper for kw in ["ACCOUNT NO", "ACCOUNT NUMBER", "A/C NO", "AC NO"]):
-                    match = self.ACCOUNT_NUMBER_PATTERN.search(line)
+                if any(kw in upper for kw in ["ACCOUNT NO", "ACCOUNT NUMBER", "A/C NO", "AC NO", "A/C NUMBER", "ACCOUNT_NO"]):
+                    match = re.search(r"(\d[\d\s\-]{8,20}\d)", line)
                     if match:
-                        details["account_number"] = match.group(1)
+                        acct_num = re.sub(r"[\s\-]", "", match.group(1))
+                        if 9 <= len(acct_num) <= 18:
+                            details["account_number"] = acct_num
+                    elif i + 1 < len(lines):
+                        next_line = lines[i + 1].strip()
+                        match = re.search(r"(\d[\d\s\-]{8,20}\d)", next_line)
+                        if match:
+                            acct_num = re.sub(r"[\s\-]", "", match.group(1))
+                            if 9 <= len(acct_num) <= 18:
+                                details["account_number"] = acct_num
 
             # IFSC
             if not details["ifsc"]:
@@ -159,14 +168,27 @@ class TextParser:
                 dates_found = self.DATE_PATTERN.findall(line)
                 if len(dates_found) >= 2:
                     details["statement_period"] = f"{dates_found[0]} to {dates_found[1]}"
-                elif dates_found:
-                    details["statement_period"] = dates_found[0]
+                else:
+                    word_dates = re.findall(
+                        r"(\d{1,2}[/\-\s]+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[/\-\s]+\d{2,4})",
+                        line,
+                        re.IGNORECASE
+                    )
+                    if len(word_dates) >= 2:
+                        details["statement_period"] = f"{word_dates[0]} to {word_dates[1]}"
+                    elif word_dates:
+                        details["statement_period"] = word_dates[0]
+                    elif dates_found:
+                        details["statement_period"] = dates_found[0]
 
             # Opening balance
             if "OPENING" in upper and "BALANCE" in upper:
                 amt = self.AMOUNT_PATTERN.findall(line)
                 if amt:
-                    details["opening_balance"] = self._parse_amount(amt[-1])
+                    if "CLOSING" in upper and len(amt) >= 2:
+                        details["opening_balance"] = self._parse_amount(amt[0])
+                    else:
+                        details["opening_balance"] = self._parse_amount(amt[-1])
 
             # Closing balance
             if "CLOSING" in upper and "BALANCE" in upper:
@@ -174,11 +196,17 @@ class TextParser:
                 if amt:
                     details["closing_balance"] = self._parse_amount(amt[-1])
 
-        # Fallback: try to find account number anywhere
+        # Fallback: try to find account number anywhere near keywords
         if not details["account_number"]:
-            match = self.ACCOUNT_NUMBER_PATTERN.search(text)
+            match = re.search(
+                r"(?:ACCOUNT\s*NO|ACCOUNT\s*NUMBER|A/C\s*NO|AC\s*NO|A/C\s*NUMBER|ACCOUNT_NO)\s*:?\s*(\d[\d\s\-]{8,20}\d)",
+                text,
+                re.IGNORECASE
+            )
             if match:
-                details["account_number"] = match.group(1)
+                acct_num = re.sub(r"[\s\-]", "", match.group(1))
+                if 9 <= len(acct_num) <= 18:
+                    details["account_number"] = acct_num
 
         return details
 
@@ -186,7 +214,7 @@ class TextParser:
     # Transaction parsing
     # ------------------------------------------------------------------ #
 
-    def _parse_transactions(self, text: str) -> List[Dict[str, Any]]:
+    def _parse_transactions(self, text: str, opening_balance: Optional[float] = None) -> List[Dict[str, Any]]:
         """
         Parse individual transactions from the statement text.
 
@@ -243,6 +271,48 @@ class TextParser:
         # Don't forget the last transaction
         if current_txn is not None:
             transactions.append(current_txn)
+
+        # Post-process to correctly assign debit vs credit based on running balance
+        for i, txn in enumerate(transactions):
+            amount = txn.get("debit", 0.0)
+            current_bal = txn.get("running_balance", 0.0)
+            
+            # We only fix if we defaulted to debit and there's an amount
+            if amount > 0 and txn.get("credit", 0.0) == 0.0:
+                prev_bal = opening_balance if i == 0 else transactions[i-1].get("running_balance", 0.0)
+                
+                # If we don't have a reliable previous balance (e.g. first transaction with no opening balance)
+                if prev_bal is None or prev_bal == 0.0:
+                    desc_upper = txn.get("description", "").upper()
+                    credit_keywords = [
+                        "/DEP/", "CREDIT", "NEFT/IN", "IMPS/IN", "UPI/CR", 
+                        "BY ", "NEFT CR", "RTGS CR", "UPI CR", " CR ", 
+                        " CR-", "- CR", "SALARY", "REFUND", "DIVIDEND", "CASH DEP"
+                    ]
+                    if any(kw in desc_upper for kw in credit_keywords):
+                        txn["credit"] = amount
+                        txn["debit"] = 0.0
+                else:
+                    diff_if_credit = round(current_bal - amount, 2)
+                    diff_if_debit = round(current_bal + amount, 2)
+                    
+                    if abs(diff_if_credit - prev_bal) < 0.1:
+                        txn["credit"] = amount
+                        txn["debit"] = 0.0
+                    elif abs(diff_if_debit - prev_bal) < 0.1:
+                        txn["debit"] = amount
+                        txn["credit"] = 0.0
+                    else:
+                        # Fallback to keywords if math doesn't perfectly align due to missed transactions
+                        desc_upper = txn.get("description", "").upper()
+                        credit_keywords = [
+                            "/DEP/", "CREDIT", "NEFT/IN", "IMPS/IN", "UPI/CR", 
+                            "BY ", "NEFT CR", "RTGS CR", "UPI CR", " CR ", 
+                            " CR-", "- CR", "SALARY", "REFUND", "DIVIDEND", "CASH DEP"
+                        ]
+                        if any(kw in desc_upper for kw in credit_keywords):
+                            txn["credit"] = amount
+                            txn["debit"] = 0.0
 
         return transactions
 

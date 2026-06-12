@@ -9,6 +9,7 @@ import {
   Inbox,
   Search,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
 import api from '../services/api';
 
@@ -22,6 +23,8 @@ export default function History() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [downloading, setDownloading] = useState(null); // analysis_id being downloaded
+  const [deleting, setDeleting] = useState(null); // analysis_id being deleted
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null); // analysis_id needing confirmation
 
   // ── Fetch history ──────────────────────────────────────────────────
   useEffect(() => {
@@ -61,6 +64,24 @@ export default function History() {
       alert('Download failed. Please try again.');
     } finally {
       setDownloading(null);
+    }
+  };
+
+  // ── Delete handler ──────────────────────────────────────────────────
+  const handleDelete = async (id) => {
+    setDeleting(id);
+    try {
+      await api.delete(`/api/history/${id}`);
+      setAnalyses((prev) => prev.filter((a) => a.id !== id));
+      setConfirmDeleteId(null);
+    } catch (err) {
+      alert(
+        err.response?.data?.detail ||
+          err.response?.data?.message ||
+          'Failed to delete analysis.'
+      );
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -231,23 +252,59 @@ export default function History() {
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <button
-                                onClick={() =>
-                                  handleDownload(
-                                    id,
-                                    item.original_pdf_name
-                                  )
-                                }
-                                disabled={downloading === id}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:shadow-md disabled:opacity-60 transition-all"
-                              >
-                                {downloading === id ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <Download className="h-3.5 w-3.5" />
-                                )}
-                                Download
-                              </button>
+                              {confirmDeleteId === id ? (
+                                <div className="flex items-center justify-end gap-2">
+                                  <span className="text-xs text-red-500 font-semibold dark:text-red-400">
+                                    Are you sure?
+                                  </span>
+                                  <button
+                                    onClick={() => handleDelete(id)}
+                                    disabled={deleting === id}
+                                    className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                                  >
+                                    {deleting === id ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      'Delete'
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmDeleteId(null)}
+                                    disabled={deleting === id}
+                                    className="rounded-lg bg-navy-100 px-3 py-1.5 text-xs font-bold text-navy-700 hover:bg-navy-200 dark:bg-navy-800 dark:text-gray-300 dark:hover:bg-navy-700 transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() =>
+                                      handleDownload(
+                                        id,
+                                        item.original_pdf_name
+                                      )
+                                    }
+                                    disabled={downloading === id || deleting !== null}
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:shadow-md disabled:opacity-60 transition-all"
+                                  >
+                                    {downloading === id ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Download className="h-3.5 w-3.5" />
+                                    )}
+                                    Download
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmDeleteId(id)}
+                                    disabled={downloading === id || deleting !== null}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 hover:border-red-300 dark:border-red-900/50 dark:hover:border-red-900 bg-red-50 hover:bg-red-100/70 dark:bg-red-950/20 dark:hover:bg-red-950/40 p-2 text-xs font-semibold text-red-600 dark:text-red-400 transition-all"
+                                    title="Delete Analysis"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              )}
                             </td>
                           </motion.tr>
                         );
@@ -292,20 +349,58 @@ export default function History() {
                         </span>
                       )}
                     </div>
-                    <button
-                      onClick={() =>
-                        handleDownload(id, item.original_pdf_name)
-                      }
-                      disabled={downloading === id}
-                      className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 py-2.5 text-xs font-semibold text-white shadow-sm hover:shadow-md disabled:opacity-60 transition-all"
-                    >
-                      {downloading === id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Download className="h-3.5 w-3.5" />
-                      )}
-                      Download Excel
-                    </button>
+                    {confirmDeleteId === id ? (
+                      <div className="mt-4 flex items-center justify-between rounded-xl bg-red-50/50 p-3 dark:bg-red-950/10 border border-red-100 dark:border-red-900/30">
+                        <span className="text-xs text-red-600 font-bold dark:text-red-400">
+                          Delete this analysis?
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            disabled={deleting === id}
+                            className="rounded-lg bg-navy-100 px-3 py-1.5 text-xs font-bold text-navy-700 hover:bg-navy-200 dark:bg-navy-800 dark:text-gray-300 dark:hover:bg-navy-700 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => handleDelete(id)}
+                            disabled={deleting === id}
+                            className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50 transition-colors shadow-sm"
+                          >
+                            {deleting === id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              'Delete'
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-4 flex gap-2">
+                        <button
+                          onClick={() =>
+                            handleDownload(id, item.original_pdf_name)
+                          }
+                          disabled={downloading === id || deleting !== null}
+                          className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 py-2.5 text-xs font-semibold text-white shadow-sm hover:shadow-md disabled:opacity-60 transition-all"
+                        >
+                          {downloading === id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Download className="h-3.5 w-3.5" />
+                          )}
+                          Download Excel
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(id)}
+                          disabled={downloading === id || deleting !== null}
+                          className="flex items-center justify-center rounded-xl border border-red-200 hover:border-red-300 dark:border-red-900/50 dark:hover:border-red-900 bg-red-50 hover:bg-red-100/70 dark:bg-red-950/20 dark:hover:bg-red-950/40 px-3 py-2.5 text-red-600 dark:text-red-400 transition-all"
+                          title="Delete Analysis"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
                   </motion.div>
                 );
               })}

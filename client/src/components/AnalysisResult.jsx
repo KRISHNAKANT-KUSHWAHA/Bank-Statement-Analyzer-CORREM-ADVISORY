@@ -1,5 +1,5 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Download,
   CreditCard,
@@ -13,12 +13,13 @@ import {
   Briefcase,
   Building2,
   PieChart,
+  List,
+  BarChart3,
 } from 'lucide-react';
 import api from '../services/api';
+import { CategoryDonutChart, MonthlyBarChart } from './VisualCharts';
 
-/* ═══════════════════════════════════════════════════════════════════════
-   COLOUR MAP for category badges
-   ═══════════════════════════════════════════════════════════════════════ */
+// CATEGORY BADGE COLOR MAP
 const CATEGORY_COLORS = {
   'Salary': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
   'Food & Dining': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
@@ -41,9 +42,7 @@ const CATEGORY_COLORS = {
 
 const badgeColor = (cat) => CATEGORY_COLORS[cat] || CATEGORY_COLORS.default;
 
-/* ═══════════════════════════════════════════════════════════════════════
-   HELPER: format ₹ amount
-   ═══════════════════════════════════════════════════════════════════════ */
+// HELPER: format INR amount
 const fmt = (n) => {
   if (n == null || isNaN(n)) return '—';
   return new Intl.NumberFormat('en-IN', {
@@ -53,10 +52,8 @@ const fmt = (n) => {
   }).format(n);
 };
 
-/* ═══════════════════════════════════════════════════════════════════════
-   SECTION WRAPPER with entrance animation
-   ═══════════════════════════════════════════════════════════════════════ */
-const Section = ({ title, icon: Icon, children, delay = 0 }) => (
+// SECTION WRAPPER
+const Section = ({ title, icon: Icon, headerActions, children, delay = 0 }) => (
   <motion.section
     initial={{ opacity: 0, y: 24 }}
     animate={{ opacity: 1, y: 0 }}
@@ -64,13 +61,40 @@ const Section = ({ title, icon: Icon, children, delay = 0 }) => (
     className="rounded-2xl border border-navy-100 bg-white p-6 shadow-sm dark:border-navy-800 dark:bg-navy-900"
   >
     {title && (
-      <div className="mb-5 flex items-center gap-2">
-        {Icon && <Icon className="h-5 w-5 text-gold-500" />}
-        <h3 className="text-lg font-bold text-navy-900 dark:text-white">{title}</h3>
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="h-5 w-5 text-gold-500" />}
+          <h3 className="text-lg font-bold text-navy-900 dark:text-white">{title}</h3>
+        </div>
+        {headerActions && <div className="shrink-0">{headerActions}</div>}
       </div>
     )}
     {children}
   </motion.section>
+);
+
+// TOGGLE TABS
+const ToggleTabs = ({ activeTab, onTabChange, tabs }) => (
+  <div className="flex rounded-lg bg-navy-50 p-1 dark:bg-navy-800/80">
+    {tabs.map((tab) => {
+      const Icon = tab.icon;
+      const isActive = activeTab === tab.id;
+      return (
+        <button
+          key={tab.id}
+          onClick={() => onTabChange(tab.id)}
+          className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
+            isActive
+              ? 'bg-white text-navy-900 shadow-sm dark:bg-navy-900 dark:text-white'
+              : 'text-navy-500 hover:text-navy-700 dark:text-gray-400 dark:hover:text-gray-200'
+          }`}
+        >
+          {Icon && <Icon className="h-3.5 w-3.5" />}
+          {tab.label}
+        </button>
+      );
+    })}
+  </div>
 );
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -91,6 +115,9 @@ const Section = ({ title, icon: Icon, children, delay = 0 }) => (
  */
 export default function AnalysisResult({ data }) {
   if (!data) return null;
+
+  const [categoryView, setCategoryView] = useState('chart');
+  const [monthlyView, setMonthlyView] = useState('chart');
 
   const {
     analysis_id,
@@ -227,87 +254,123 @@ export default function AnalysisResult({ data }) {
 
       {/* ── Category Summary ───────────────────────────────────────── */}
       {category_summary.length > 0 && (
-        <Section title="Spending by Category" icon={Wallet} delay={0.2}>
-          <div className="space-y-3">
-            {category_summary.map((cat) => {
-              const pct = maxDebit > 0 ? ((cat.total_debit / maxDebit) * 100).toFixed(1) : 0;
-              return (
-                <div key={cat.category}>
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${badgeColor(cat.category)}`}
-                      >
-                        {cat.category}
-                      </span>
-                      <span className="text-navy-400 dark:text-gray-500">
-                        ({cat.transaction_count} txns)
+        <Section
+          title="Spending by Category"
+          icon={Wallet}
+          delay={0.2}
+          headerActions={
+            <ToggleTabs
+              activeTab={categoryView}
+              onTabChange={setCategoryView}
+              tabs={[
+                { id: 'chart', label: 'Chart View', icon: PieChart },
+                { id: 'list', label: 'List View', icon: List },
+              ]}
+            />
+          }
+        >
+          {categoryView === 'chart' ? (
+            <CategoryDonutChart data={category_summary} />
+          ) : (
+            <div className="space-y-3">
+              {category_summary.map((cat) => {
+                const pct = maxDebit > 0 ? ((cat.total_debit / maxDebit) * 100).toFixed(1) : 0;
+                return (
+                  <div key={cat.category}>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${badgeColor(cat.category)}`}
+                        >
+                          {cat.category}
+                        </span>
+                        <span className="text-navy-400 dark:text-gray-500">
+                          ({cat.transaction_count} txns)
+                        </span>
+                      </div>
+                      <span className="font-semibold text-navy-900 dark:text-white">
+                        {fmt(cat.total_debit)}
+                        {cat.total_credit > 0 && (
+                          <span className="ml-2 text-xs text-green-500">
+                            +{fmt(cat.total_credit)}
+                          </span>
+                        )}
                       </span>
                     </div>
-                    <span className="font-semibold text-navy-900 dark:text-white">
-                      {fmt(cat.total_debit)}
-                      {cat.total_credit > 0 && (
-                        <span className="ml-2 text-xs text-green-500">
-                          +{fmt(cat.total_credit)}
-                        </span>
-                      )}
-                    </span>
+                    <div className="mt-1 h-2 overflow-hidden rounded-full bg-navy-100 dark:bg-navy-800">
+                      <motion.div
+                        className="h-full rounded-full bg-gradient-to-r from-gold-400 to-gold-600"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.8, ease: 'easeOut' }}
+                      />
+                    </div>
                   </div>
-                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-navy-100 dark:bg-navy-800">
-                    <motion.div
-                      className="h-full rounded-full bg-gradient-to-r from-gold-400 to-gold-600"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${pct}%` }}
-                      transition={{ duration: 0.8, ease: 'easeOut' }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </Section>
       )}
 
       {/* ── Monthly Analysis ───────────────────────────────────────── */}
       {monthly_analysis.length > 0 && (
-        <Section title="Monthly Breakdown" icon={CalendarDays} delay={0.25}>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {monthly_analysis.map((m, i) => (
-              <motion.div
-                key={m.month || i}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.3 + i * 0.05 }}
-                className="rounded-xl border border-navy-100 bg-navy-50/50 p-4 dark:border-navy-700 dark:bg-navy-800/50"
-              >
-                <p className="font-semibold text-navy-900 dark:text-white">
-                  {m.month}
-                </p>
-                <div className="mt-3 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-navy-500 dark:text-gray-400">Inflow</span>
-                    <span className="font-medium text-green-600 dark:text-green-400">
-                      {fmt(m.inflows)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-navy-500 dark:text-gray-400">Outflow</span>
-                    <span className="font-medium text-red-500">
-                      {fmt(m.outflows)}
-                    </span>
-                  </div>
-                  <div className="border-t border-navy-200 pt-2 dark:border-navy-700">
+        <Section
+          title="Monthly Breakdown"
+          icon={CalendarDays}
+          delay={0.25}
+          headerActions={
+            <ToggleTabs
+              activeTab={monthlyView}
+              onTabChange={setMonthlyView}
+              tabs={[
+                { id: 'chart', label: 'Chart View', icon: BarChart3 },
+                { id: 'list', label: 'Card View', icon: List },
+              ]}
+            />
+          }
+        >
+          {monthlyView === 'chart' ? (
+            <MonthlyBarChart data={monthly_analysis} />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {monthly_analysis.map((m, i) => (
+                <motion.div
+                  key={m.month || i}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.3 + i * 0.05 }}
+                  className="rounded-xl border border-navy-100 bg-navy-50/50 p-4 dark:border-navy-700 dark:bg-navy-800/50"
+                >
+                  <p className="font-semibold text-navy-900 dark:text-white">
+                    {m.month}
+                  </p>
+                  <div className="mt-3 space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-navy-500 dark:text-gray-400">Net</span>
-                      <span className={`font-medium ${m.net >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-                        {fmt(m.net)}
+                      <span className="text-navy-500 dark:text-gray-400">Inflow</span>
+                      <span className="font-medium text-green-600 dark:text-green-400">
+                        {fmt(m.inflows)}
                       </span>
                     </div>
+                    <div className="flex justify-between">
+                      <span className="text-navy-500 dark:text-gray-400">Outflow</span>
+                      <span className="font-medium text-red-500">
+                        {fmt(m.outflows)}
+                      </span>
+                    </div>
+                    <div className="border-t border-navy-200 pt-2 dark:border-navy-700">
+                      <div className="flex justify-between">
+                        <span className="text-navy-500 dark:text-gray-400">Net</span>
+                        <span className={`font-medium ${m.net >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                          {fmt(m.net)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </Section>
       )}
 
