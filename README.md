@@ -153,8 +153,19 @@ CORREM ADVISORY project/
 │
 └── README.md
 ```
+## AI Tools Used
 
+This project was developed with the assistance of AI tools:
+
+- **ChatGPT** – Requirement analysis, project planning, and documentation.
+- **Claude** – Architecture discussions and implementation guidance.
+- **Antigravity** – Feature implementation, code generation, and debugging.
+- **Codex** – Development assistance, code review, and issue resolution.
+
+> AI tools were used as development assistants. Final integration, testing, deployment, and submission were completed by the author.
 ## 📁 Project Screensort
+
+---
 
 <img width="1866" height="857" alt="image" src="https://github.com/user-attachments/assets/220b7ea6-ef8b-4548-849e-4f90f88d5c9e" />
 
