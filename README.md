@@ -509,4 +509,4 @@ This project is built for **Correm Advisory** as an HDFC Bank Statement Analyzer
 
 ---
 
-Built with ❤️ by **Correm Advisory**
+Built with ❤️ by **krishnakant kushwaha**
