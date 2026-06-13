@@ -179,6 +179,8 @@ This project was developed with the assistance of AI tools:
 
 <img width="1520" height="286" alt="image" src="https://github.com/user-attachments/assets/f0a988d7-6688-4b7f-b580-9d1b48adc2e2" />
 
+<img width="1528" height="785" alt="image" src="https://github.com/user-attachments/assets/b1adce63-4f04-4f75-be4a-ff75310472eb" />
+
 <img width="1526" height="197" alt="image" src="https://github.com/user-attachments/assets/56b09456-eed6-45c1-b828-8b1df4c7bc4e" />
 
 <img width="1482" height="780" alt="image" src="https://github.com/user-attachments/assets/8114e1e6-c9db-49e7-897e-24fe8e6f6d95" />
