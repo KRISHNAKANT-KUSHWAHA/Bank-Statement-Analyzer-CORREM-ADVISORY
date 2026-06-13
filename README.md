@@ -173,11 +173,16 @@ This project was developed with the assistance of AI tools:
 
 <img width="1622" height="658" alt="image" src="https://github.com/user-attachments/assets/62bffb6d-5283-4b49-b6e6-99d3ac5f3a9e" />
 
-<img width="1607" height="402" alt="image" src="https://github.com/user-attachments/assets/d842c838-81da-4b1b-982b-9461a64cbf82" />
+<img width="1547" height="230" alt="image" src="https://github.com/user-attachments/assets/77c8fc54-7e8b-48ff-ada7-3ad89aa39131" />
 
-<img width="1515" height="485" alt="image" src="https://github.com/user-attachments/assets/5fcd8887-3841-45c4-a7bc-2d8a592dab80" />
+<img width="1541" height="516" alt="image" src="https://github.com/user-attachments/assets/642eefb4-5386-46bc-830f-afd385b05c52" />
 
-<img width="1517" height="666" alt="image" src="https://github.com/user-attachments/assets/3215eb95-8c34-461e-8a6f-f71f178c723f" />
+<img width="1520" height="286" alt="image" src="https://github.com/user-attachments/assets/f0a988d7-6688-4b7f-b580-9d1b48adc2e2" />
+
+<img width="1526" height="197" alt="image" src="https://github.com/user-attachments/assets/56b09456-eed6-45c1-b828-8b1df4c7bc4e" />
+
+<img width="1482" height="780" alt="image" src="https://github.com/user-attachments/assets/8114e1e6-c9db-49e7-897e-24fe8e6f6d95" />
+
 
 ---
 
